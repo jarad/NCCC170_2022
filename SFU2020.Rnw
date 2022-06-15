@@ -1,0 +1,767 @@
+\documentclass[handout,10pt,aspectratio=43]{beamer}
+
+\usepackage{natbib}
+
+\usepackage{pdfpages}
+\usepackage[ruled,vlined,linesnumbered,resetcount]{algorithm2e}
+
+\usetheme{AnnArbor}
+\usecolortheme{beaver}
+
+\graphicspath{{include/}}
+
+\setlength{\unitlength}{\textwidth}  % measure in textwidths
+\usepackage[normalem]{ulem}
+
+% to avoid counting all pages
+\newcommand{\backupbegin}{
+   \newcounter{finalframe}
+   \setcounter{finalframe}{\value{framenumber}}
+}
+\newcommand{\backupend}{
+   \setcounter{framenumber}{\value{finalframe}}
+}
+
+
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{enumerate items}[default]
+\setbeamertemplate{enumerate subitem}{\alph{enumii}.}
+\setbeamertemplate{enumerate subsubitem}{\roman{enumiii}.}
+\setkeys{Gin}{width=0.6\textwidth}
+
+\newcommand{\I}{\mathrm{I}}
+\newcommand{\ind}{\stackrel{ind}{\sim}}
+\providecommand{\ov}[1]{\overline{#1}}
+\newcommand{\ubar}[1]{\text{\b{$#1$}}}
+
+\usefonttheme[onlymath]{serif} % uncomment for article style math
+
+\institute[ISU]{Iowa State University}
+\date{\today}
+
+\title[Sequential Knot Selection in Sparse GPs]{Sequential Knot Selection in Sparse Gaussian Processes}
+\author[Niemi, Garton, and Carriquiry]{Jarad Niemi, Nate Garton, and Alicia Carriquiry}
+
+
+
+<<options, results='hide', echo=FALSE, purl=FALSE>>=
+opts_chunk$set(comment=NA, 
+               fig.width=6, fig.height=5, 
+               size='tiny', 
+               out.width='0.8\\textwidth', 
+               fig.align='center', 
+               message = FALSE,
+               echo = FALSE,
+               cache = TRUE)
+options(width=120)
+@
+
+<<libraries, message=FALSE, warning=FALSE>>=
+library("tidyverse")
+library("mvtnorm")
+@
+
+<<set_seed, echo=FALSE>>=
+set.seed(20200109)
+@
+
+
+
+\begin{document}
+
+\begin{frame}
+\maketitle
+
+
+\vspace{0.2in} \pause
+
+{\footnotesize
+Funded, in part, by 
+\begin{itemize}
+\item[-] the Center for Statistics and Applications in
+Forensic Evidence (CSAFE) \pause and 
+\item[-] the Iowa State University Presidential Interdisciplinary 
+Research Initiative on C-CHANGE: Science for a Changing Agriculture.
+\end{itemize}
+}
+
+\end{frame}
+
+
+
+
+\begin{frame}
+\frametitle{Outline}
+\begin{itemize}
+\item Basics of Gaussian Processes (GPs)
+\item Sparse GPs using knots
+\item One-at-a-time (OAT) selection
+\item Applications
+\end{itemize}
+\end{frame}
+
+
+\section{Basics of Gaussian Processes (GPs)}
+\begin{frame}
+\frametitle{Non-parametric regression}
+
+Suppose we have the model 
+\[ 
+y_i = f(x_i) + \epsilon_i
+\]
+\pause
+where 
+\begin{itemize}[<+->]
+\item response $y_i \in \mathbb{R}$ (for simplicity)
+\item input $x_i \in \mathcal{X} \subset \mathbb{R}^d$
+\item noise $\epsilon_i \ind N(0,\tau^2)$
+\item unknown $f:\mathcal{X} \to \mathbb{R}$
+\end{itemize}
+
+\vspace{0.2in} \pause 
+
+We observe pairs $\left(y_i,x_i^\top \right)$ for $i = 1,\ldots,N$ \pause
+and we are interested in inference on the unknown $f(\cdot)$. 
+
+\end{frame}
+
+
+
+\begin{frame}
+\frametitle{Gaussian Process}
+
+Assume a Gaussian Process (GP) prior for $f$:
+
+\[ f(x) \sim \mathcal{GP}\left(m(x), k_\theta(x,x')\right)\]
+
+\pause
+
+which assumes, for any finite subset,
+\[
+f_x = \left[\begin{array}{c} f(x_1) \\ \vdots \\ f(x_M) \end{array}\right] \pause
+\sim \mathcal{N}_M(m_x, \Sigma_{xx})
+\]
+where $m_x = [m(x_1),\ldots, m(x_M)]^\top$
+\pause
+and
+\[
+\Sigma_{xx}(i,j) = k_\theta(x_i,x_j)
+\]
+for some kernel (covariance function)
+$k_\theta: \mathcal{X} \times \mathcal{X} \to \mathbb{R}$.
+
+{\tiny
+\citep{rasmussen2006}
+}
+
+\end{frame}
+
+
+
+
+\begin{frame}
+\frametitle{Kernel}
+
+Kernel controls how smooth the process is both by determining:
+\begin{itemize}
+\item function differentiability and
+\item function wiggliness.
+\end{itemize}
+
+\vspace{0.2in}\pause
+
+As an example, the squared exponential (or Gaussian) kernel is
+\[
+k_\theta(x_i,x_j) = \sigma^2 \exp\left( -\frac{1}{2} \frac{(x_i-x_j)^\top(x_i-x_j)}{\phi} \right)
+\]
+\pause
+which provides infinitely differentiable GP realizations.
+\pause
+The parameter $\sigma^2$ is the variance that controls the overall magnitude of the
+function \pause
+and $\phi$ is the length-scale that controls how wiggly the function is.
+\end{frame}
+
+
+\begin{frame}
+\frametitle{}
+<<gp_sims>>=
+K <- function(x, log_par = c(0,0)) {
+  sigma = exp(log_par[1]); phi = exp(log_par[2])
+  d <- as.matrix(dist(matrix(x, ncol = 1), diag = TRUE, upper = TRUE))
+  sigma^2*exp(-d^2/2/phi)
+}
+
+sim_gp <- function(d) {
+  phi <- unique(d$phi);   stopifnot(length(phi) == 1)
+  sig <- unique(d$sigma); stopifnot(length(sig) == 1)
+  
+  n <- length(d$x)
+  cS <- chol(K(d$x, log_par = log(c(sig, phi))) + diag(n)*.Machine$double.eps*10^6)
+  
+  data.frame(x = d$x, f = t(cS) %*% rnorm(n))
+}
+
+d <- expand.grid(x = seq(0, 1, length.out = 1001),
+                 sigma = 10^c(-1,0,1),
+                 phi = 10^c(-2,-1,0), 
+                 replicate = 1:5) %>%
+  group_by(sigma, phi, replicate) %>%
+  do(sim_gp(.)) %>%
+  ungroup() %>%
+  mutate(replicate = as.factor(replicate),
+         sigma = paste("sigma=",sigma),
+         phi   = paste("phi=", phi))
+
+
+@
+
+<<dependson="gp_sims">>=
+ggplot(d, aes(x, f, color = replicate, group = )) +
+  geom_line() +
+  facet_grid(sigma ~ phi, scales = "free_y") +
+  scale_x_continuous(breaks = c(0,1)) + 
+  labs(title = "Gaussian Process Simulations (squared exponential kernel)") +
+  theme_bw() + 
+  theme(legend.position = "none")
+@
+\end{frame}
+
+
+
+\begin{frame}
+\frametitle{Training a GP}
+
+Find the maximum likelihood estimator (MLE) for $\theta = (\tau^2,\sigma^2,\phi)$,
+\pause
+\[
+\hat{\theta} = \mbox{argmax}_\theta \, p(y|\theta) \pause
+= \mbox{argmax}_{\theta} \, N\left(y; m(x), \tau^2\I + \Sigma(\theta)\right)
+\]
+\pause
+where $y=(y_1,\ldots,y_N)$.
+\pause
+The log-likelihood is
+\[ \begin{array}{rl}
+\log \mathcal{N}(y; m(x), \tau^2\I+\Sigma_\theta) = & C \\
+&- \frac{1}{2}\log | \tau^2\I+\Sigma(\theta)| \\
+&-\frac{1}{2} (y-m_x)^\top [ \tau^2\I+\Sigma(\theta)]^{-1} (y-m_x)
+\end{array} \]
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Predicting from a GP}
+{\small
+
+Function estimation (prediction) from a GP is based on the following joint
+distribution:
+\[
+\left. \begin{array}{c} y \\ f_{x^*} \end{array} \right| \hat\theta \sim
+\left( \left[ \begin{array}{c} m_x \\ m_{x^*} \end{array}  \right],
+\left[ \begin{array}{ll} \hat\Sigma_{xx} + \hat\tau^2 \I & \hat\Sigma_{xx^*} \\
+\hat\Sigma_{x^*x} & \hat\Sigma_{x^*x^*} \end{array}  \right] \right)
+\]
+\pause
+where
+\begin{itemize}[<+->]
+\item $x^* = (x_1^*, \ldots, x_{N^*}^*)$ represents a set of prediction locations,
+\item $f_{x^*} = (f(x_1^*),\ldots,f(x_{N^*}^*))^\top$ represents a set of prediction values,
+\item $m_{x^*} = (m(x_1^*),\ldots,m(x_{N^*}^*))^\top$,
+\item $\Sigma_{x^*x^*}(i,j) = k_{\hat\theta}(x_i^*,x_j^*)$, and
+\item $\Sigma_{xx^*}(i,j) = k_{\hat\theta}(x_i,x_j^*)$.
+\end{itemize}
+
+\vspace{0.1in} \pause
+
+Thus, the desired conditional distribution is
+
+\[
+f_{x^*}|y,\hat\theta \sim \mathcal{N}(\hat{m}_{x^*}, \hat\Sigma_{x^*x^*})
+\]
+\pause
+where
+\[ \begin{array}{ll}
+\hat{m}_{x^*} &= m_{x^*} + \hat\Sigma_{x^*x}\left[\hat\tau^2\I + \hat\Sigma_{xx}\right]^{-1}(y-m_{x}) \\
+\hat\Sigma_{x^*x^*} &= \hat\Sigma_{x^*x^*} - \hat\Sigma_{x^*x}\left[\hat\tau^2\I + \hat\Sigma_{xx}\right]^{-1}\hat\Sigma_{xx^*}.
+\end{array} \]
+}
+\end{frame}
+
+
+
+
+\begin{frame}
+\frametitle{Graphical representation}
+<<data, dependson="gp_sims">>=
+set.seed(20200109+8)
+
+# Parameters
+sig = 1
+phi = 0.1
+
+# Data
+x <- seq(0, 1, length = 1001)
+Sigmaxx = K(x, log_par=log(c(sig,phi)))
+truth <- sim_gp(data.frame(x=x, sigma = 1, phi = 0.1))
+
+n <- 5
+d <- truth %>% 
+  sample_n(n) %>%
+  mutate(y = f + rnorm(n, 0, 0.01))
+
+# Training
+log_like = function(log_par, y, x) {
+  n <- length(y)
+  dmvnorm(y, 
+          mean = rep(0,length(y)), 
+          sigma = K(x, log_par = log_par[-1]) + exp(log_par[1])*diag(n), 
+          log = TRUE)
+}
+train = optim(log(c(.01, 1, .1)), log_like, y = d$y, x = d$x, control = list(fnscale = -1))
+
+# Prediction
+ns = 101
+xs = seq(0, 1, length = ns)
+Sigma = K(c(d$x,xs), log_par = train$par[-1])
+
+Sigmaxx = Sigma[   1:n,     1:n]
+Sigmass = Sigma[-c(1:n), -c(1:n)]
+Sigmaxs = Sigma[   1:n,  -c(1:n)]
+
+inv = solve(exp(train$par[1])*diag(n) + Sigmaxx)
+hat_ms = t(Sigmaxs) %*% inv %*% d$y
+hat_Sigmass = Sigmass - t(Sigmaxs) %*% inv %*% Sigmaxs
+
+p <- data.frame(x = xs,
+                y = hat_ms,
+                lb = hat_ms - 2*sqrt(diag(hat_Sigmass)),
+                ub = hat_ms + 2*sqrt(diag(hat_Sigmass)))
+
+ggplot(p, aes(x = x)) + 
+  geom_ribbon(aes(ymin = lb, ymax = ub), fill = "gray", alpha = 0.5) + 
+  geom_line(aes(y = y), color = "gray") + 
+  geom_point(data = d, aes(x = x, y = y)) +
+  geom_line(data = truth, aes(x = x, y = f), color="blue") +
+  theme_bw()
+@
+\end{frame}
+
+
+
+\section{Sparse GPs using knots}
+\begin{frame}
+\frametitle{Training a GP - revisited}
+
+Find the maximum likelihood estimator (MLE) for $\theta = (\tau^2,\sigma^2,\phi)$,
+
+\[
+\hat{\theta} = \mbox{argmax}_\theta \, p(y|\theta) 
+= \mbox{argmax}_{\theta} \, N\left(y; m_x, \tau^2\I + \Sigma(\theta)\right)
+\]
+
+where $y=(y_1,\ldots,y_N)$.
+
+The log-likelihood is
+\[ \begin{array}{rl}
+\log \mathcal{N}(y; m_x, \tau^2\I+\Sigma_\theta) = & C \\
+&- \frac{1}{2}\log | \tau^2\I+\Sigma(\theta)| \\
+&-\frac{1}{2} (y-m_x)^\top [ \tau^2\I+\Sigma(\theta)]^{-1} (y-m_x)
+\end{array} \]
+
+\vspace{0.2in} \pause
+
+If there are $N$ observations, $\Sigma(\theta)$ is an $N\times N$ 
+covariance matrix
+\pause
+and thus the computational time scales as $\mathcal{O}(N^3)$.
+
+\vspace{0.2in}
+
+This is doable if $N\approx 1,000$ but not when you start getting larger
+and larger data sets. 
+\end{frame}
+
+
+
+
+
+
+\begin{frame}
+\frametitle{Fully Independent Conditional (FIC) Approximation}
+
+Introduce a set of knots $x^{\dagger} = \left\{x_1^\dagger, \ldots, x_K^\dagger \right\}$ with $K<<N$,
+\pause
+such that 
+\[
+p(f_x,f_{x^{\dagger}}|\theta) = p(f_x|f_{x^{\dagger}}, \theta)p(f_{x^{\dagger}}|\theta).
+\]
+\pause
+where
+\[ \begin{array}{rl}
+f_x| f_{x^{\dagger}} , \theta  &\sim  \mathcal{N}\left( m_x + \Sigma_{xx^{\dagger}} \Sigma_{x^{\dagger}x^{\dagger}}^{-1}(f_{x^{\dagger}} - m_{x^{\dagger}}) , \Lambda \right)  \pause \\
+f_{x^{\dagger}}| \theta &\sim  \mathcal{N}(m_{x^{\dagger}}, \Sigma_{x^{\dagger}x^{\dagger}}) 
+\end{array} \]
+\pause
+with $\Lambda = \text{diag}\left(\Sigma_{xx} - \Sigma_{x x^{\dagger}} \Sigma_{x^{\dagger}x^{\dagger}}^{-1} \Sigma_{x^{\dagger}x}\right)$.
+
+\vspace{0.2in} \pause
+
+This joint implies the following marginal distribution for $f_x$:
+\[
+f_x| \theta \sim \mathcal{N}(m_{x}, \Lambda + \Sigma_{x x^{\dagger}} \Sigma_{x^{\dagger}x^{\dagger}}^{-1} \Sigma_{x^{\dagger}x})
+\]
+\pause
+which has the correct marginal means and variances, \pause
+but the covariances are controlled by the knots.
+
+\vspace{0.1in} \pause 
+
+{\tiny 
+\citep{seeger2003, candela2005, snelson2006, banerjee2008, finley2009, titsias2009, cao2013}
+}
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Train FIC Model}
+
+Let $\Psi_{xx} \equiv \Lambda(\theta) + \Sigma_{x x^{\dagger}}(\theta) \Sigma_{x^{\dagger}x^{\dagger}}(\theta)^{-1}\Sigma_{x^{\dagger}x}(\theta)$,
+\pause
+then
+\[
+Y|x^{\dagger}, \theta\sim \mathcal{N}(m_{x}, \tau^2\I + \Psi_{xx}).
+\]
+
+\vspace{0.2in} \pause
+
+Train the model by finding
+\[
+\hat{x}^\dagger,\hat\theta = \mbox{argmax}_{x^\dagger,\theta} \mathcal{N}(y; m_x, \tau^2I + \Psi_{xx}).
+\]
+\pause
+which has computational complexity of $\mathcal{O}(NK^2)$.
+\vspace{0.2in} \pause
+
+Appealing due to similarity with Full GP MLE approach and massively reduced
+computational complexity, \pause
+but there are a number of questions:
+\begin{itemize}
+\item how many knots are needed?
+\item where should we initialize the knots?
+\item when do we stop our iterative optimization algorithm?
+\end{itemize}
+\end{frame}
+
+
+
+\begin{frame}
+\frametitle{Simultaneous knot optimization}
+\setkeys{Gin}{width=0.9\textwidth}
+\includegraphics{normal_example}
+\end{frame}
+
+\begin{frame}
+\frametitle{Adding another knot}
+\setkeys{Gin}{width=0.9\textwidth}
+\includegraphics{normal_marginal_ll}
+\end{frame}
+
+
+
+\section{Knot selection}
+
+\section{One-at-a-time (OAT) selection}
+\begin{frame}
+\frametitle{Knot selection algorithm}
+
+Algorithm 1. OAT knot selection algorithm. Convergence in the repeat loop is declared when the change in the objective function, the log-marginal likelihood, falls below a threshold. Set initial number of knots ($K_I$).
+
+\pause
+
+\begin{algorithm}[H]
+\SetAlgoLined
+\textbf{Initialize:} $x^{\dagger} = \{x^{\dagger}_i \}_{i = 1}^{K_{I}}$ \pause \;
+$\hat{\theta} = \mbox{argmax}_{\theta} p(y|x, x^{\dagger}, \theta)$ \pause \;
+\Repeat{$|x^{\dagger}| = K_{max}$ or convergence}{
+propose new knot $x^{\dagger^*} \leftarrow J(y , x, x^{\dagger}, \hat{\theta})$ \pause \;
+$(\hat{x}^{\dagger^*}, \hat{\theta}) = \mbox{argmax}_{(x^{\dagger^*}, \theta)} p(y|x, \{x^{\dagger}, x^{\dagger^*}\}, \theta)$ \pause \;
+$x^{\dagger} = \{x^{\dagger}, \hat{x}^{\dagger^*}\}$ \;
+}
+\end{algorithm}
+\end{frame}
+
+
+
+
+\begin{frame}
+\frametitle{Bayesian optimization}
+
+Let 
+\begin{itemize}
+\item $w_{1:t-1}$ be the vector of log-marginal likelihood values at the candidates for the knot proposal which have thus far been explored at time $t$ and
+\item $w^{+} = \max(w_{1:t-1})$.
+\end{itemize}
+
+\vspace{0.1in} \pause
+
+Let $W(z)$ be the unknown marginal likelihood at input location $z$ and
+model it using a GP, for clarity call this the \alert{meta GP}.
+
+\vspace{0.2in} \pause
+
+Then expected improvement is 
+{\small
+\[
+\begin{array}{ll}
+% \alpha \left(z;w_{1:t-1}, \left\{x_1^\dagger,\ldots,x_{t-1}^\dagger\right\} \right) 
+E[\max(W(z)-w^+,0)]
+= & (E\left[W(z)|w_{1:t-1}\right] - w^{+})\Phi\left(\frac{E\left[W(z)|w_{1:t-1}\right] - w^{+}}{\sqrt{ V\left[W(z)|w_{1:t-1} \right] } } \right) \\
+& + \sqrt{ V\left[W(z)|w_{1:t-1}\right] }\phi \left(\frac{E\left[W(z)|w_{1:t-1}\right] - w^{+}}{\sqrt{ V\left[W(z)|w_{1:t-1}\right] } } \right).
+\end{array}
+\]
+}
+where $\phi$ and $\Phi$ are the pdf and cdf of a standard normal, respectively.
+
+\vspace{0.1in} \pause
+
+{\tiny
+\citep{jones2001, shahriari2016}
+}
+
+\end{frame}
+
+
+
+\begin{frame}
+\frametitle{Knot proposal algorithm}
+
+Algorithm 2. Knot proposal algorithm.
+Set the minimum ($T_{min}$) and maximum ($T_{max}$) number of marginal
+likelihood evaluations.
+
+\pause
+
+{\small
+\begin{algorithm}[H]
+\SetAlgoLined
+set the mean of the meta GP equal to 
+$\log p\left(y\left|x,\left\{x^{\dagger},\cdot\right\}, \hat{\theta}\right.\right)$ \pause \;
+sample $x_1^\dagger, ..., x^\dagger_{T_{min}}$ without replacement from $x$ \pause \;
+% $\{ x_i \}_{i = 1}^{n}$ \;
+
+% $z \leftarrow \{z_1, ..., z_{T_{min}} \} \cup x^{\dagger} $ \;
+augment known marginal likelihood values 
+$w_j = \log p\left(y\left|x,\left\{x^{\dagger},x^{\dagger}_j\right\}, \hat{\theta}\right.\right)$ for $j=1,\ldots,k$ 
+with evaluations of the marginal likelihood at the new knots, 
+that is $w_{k+j} = \log p\left(y\left|x, \left\{x^{\dagger},x^\dagger_j\right\}, \hat{\theta}\right.\right)$ for $j = 1,...,T_{min}$ \pause \;
+% $t \leftarrow T_{min}$ \;
+% \jarad{don't need to set this here because it is set in the loop}
+\For{$t = T_{min}+1, ..., T_{max}$}{
+update covariance parameters in meta GP \pause \;
+$x^*_t = \mbox{argmax}_{z \in x \setminus \{x^{\dagger}_l\}_{l = 1}^{t - 1} } \alpha\left(z;w,\left\{x_1^\dagger,\ldots,x_{t-1}^\dagger\right\}\right)$ \pause \;
+$w_t = \log p\left(y\left|x, \left\{x^{\dagger}, x^*_t \right\}, \hat{\theta}\right.\right)$ \pause \;
+}
+return $x_j^*$ such that $j=\mbox{argmax}_t \, w_t$
+\end{algorithm}
+}
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Knot selection algorithm}
+
+Algorithm 1. OAT knot selection algorithm. Convergence in the repeat loop is declared when the change in the objective function, the log-marginal likelihood, falls below a threshold. Set 
+initial number of knots ($K_I$).
+
+\begin{algorithm}[H]
+\SetAlgoLined
+\textbf{Initialize:} $x^{\dagger} = \{x^{\dagger}_i \}_{i = 1}^{K_{I}}$  \;
+$\hat{\theta} = \mbox{argmax}_{\theta} p(y|x, x^{\dagger}, \theta)$  \;
+\Repeat{$|x^{\dagger}| = K_{max}$ or convergence}{
+propose new knot $x^{\dagger^*} \leftarrow J(y , x, x^{\dagger}, \hat{\theta})$ \;
+$(\hat{x}^{\dagger^*}, \hat{\theta}) = \mbox{argmax}_{(x^{\dagger^*}, \theta)} p(y|x, \{x^{\dagger}, x^{\dagger^*}\}, \theta)$ \;
+$x^{\dagger} = \{x^{\dagger}, \hat{x}^{\dagger^*}\}$ \;
+}
+\end{algorithm}
+\end{frame}
+
+
+
+\begin{frame}
+\frametitle{One-D Gaussian data}
+\setkeys{Gin}{width=\textwidth}
+\includegraphics{oat_vs_simult_gaussian_example}
+
+Starting locations: evenly spaced (left), adversarial (middle), random (right)
+
+Algorithm: OAT (top) and simultaneous (bottom)
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Computational results}
+\begin{tabular}{|l|l|r|r|r|r|r|}
+\hline
+Method & Initialization & K & RMSE & Runtime & GA Steps & log-Likelihood\\
+\hline
+Full GP & -- & -- & 0.192 & -- & -- & -311.720\\
+\hline
+OAT & Uniform & 13 & 0.180 & 50 & 464 & -308.120\\
+\hline
+OAT & Adversarial & 22 & 0.228 & 96 & 669 & -308.587\\
+\hline
+OAT & Random & 13 & 0.228 & 50 & 470 & -308.225\\
+\hline
+Simult. & Uniform & 13 & 0.220 & 140 & 212 & -306.852\\
+\hline
+Simult. & Adversarial & 22 & 0.196 & 700 & 529 & -308.398\\
+\hline
+Simult. & Random & 13 & 0.247 & 88 & 140 & -308.071\\
+\hline
+\end{tabular}
+\end{frame}
+
+
+
+
+
+\section{Applications}
+\begin{frame}
+\frametitle{Performance metrics}
+
+All data models:
+\[ 
+MNLP = \text{median}_{i \in 1, ..., N_{test}} \{ -\log p(\tilde{y}_i|x^{\dagger}, \hat{\theta}, y) \}.
+\]
+
+\vspace{0.2in}
+
+\[ 
+AUKL = \frac{1}{N_{test}} \sum_{i = 1}^{N_{test}}\int p_{full}(f(\tilde{x}_i)|\hat{\theta}, y) \log \frac{p_{full}(f(\tilde{x}_i)|\hat{\theta}, y)}{p_{sparse}(f(\tilde{x}_i)|x^{\dagger}, \hat{\theta}, y)} df(\tilde{x}_i).
+\]
+
+\vspace{0.2in} \pause
+
+Gaussian:
+\[ SRMSE = \sigma_{\tilde{y}}^{-1} \sqrt{ \frac{1}{N_{test}} \sum_{i = 1}^{N_{test}} (E\left[f(\tilde{x}_i)|Y\right] - \tilde{y}_i )^2}, \]
+where $\sigma_{\tilde{y}}^2 = \frac{1}{N_{test} - 1}\sum_{i = 1}^{N_{test}}(\tilde{y}_i - \ubar{\tilde{y}})^2$, $\ubar{\tilde{y}} = \frac{1}{N_{test}} \sum_{i = 1}^{N_{test}}\tilde{y}_i$, and $\tilde{y}$ is the vector of test set target values.
+\end{frame}
+
+
+
+\subsection{Boston Housing}
+\begin{frame}
+\frametitle{Boston Housing}
+
+490 observations (random 80\% for training) with $d=3$
+
+\vspace{0.2in} \pause
+
+\begin{tabular}{|l|r|r|l|r|r|r|}
+\hline
+Method & Runtime & K & Tmax & SRMSE & MNLP & AUKL\\
+\hline
+Full & 394 & -- & -- & 0.359 & 2.500 & 0.000\\
+\hline
+OAT-BO & 545 & 13 & 25 & 0.366 & 2.466 & 0.045\\
+\hline
+OAT-RS & 356 & 12 & 25 & 0.366 & 2.464 & 0.039\\
+\hline
+OAT-RS & 339 & 15 & 50 & 0.364 & 2.469 & 0.047\\
+\hline
+Simult. & 25831 & 50 & -- & 0.378 & 2.291 & 0.356\\
+\hline
+Simult. & 3945 & 13 & -- & 0.356 & 2.313 & 0.242\\
+\hline
+\end{tabular}
+
+\end{frame}
+
+\subsection{Banana data}
+\begin{frame}
+\frametitle{Banana data}
+\setkeys{Gin}{width=\textwidth}
+
+Binary lassification: 5300 observations (random 10\% as training) with $d=3$
+
+\vspace{0.2in} \pause
+
+\includegraphics{banana_knot_alloc}
+
+Locations of initialized and estimated knots for the simultaneously optimized model with 50 knots (left) and for the OAT-BO model (right). Open circles are initial knots and solid points are estimated knots.
+\end{frame}
+
+\begin{frame}
+\setkeys{Gin}{width=0.8\textwidth}
+\includegraphics{banana_test_set_plot}
+\end{frame}
+
+\begin{frame}
+\frametitle{Banana data - comparison}
+\begin{tabular}{|l|r|l|r|r|r|}
+\hline
+Method & Runtime & Tmax & K & MNLP & AUKL\\
+\hline
+Full & 26795 & -- & -- & 0.038 & 0.000\\
+\hline
+OAT-BO & 3150 & 25 & 50 & 0.037 & 0.061\\
+\hline
+OAT-RS & 2954 & 25 & 50 & 0.038 & 0.051\\
+\hline
+OAT-RS & 3471 & 50 & 50 & 0.038 & 0.039\\
+\hline
+Simult. & 6219 & -- & 50 & 0.069 & 3.265\\
+\hline
+\end{tabular}
+\end{frame}
+
+\begin{frame}
+\frametitle{Summary}
+
+One-at-a-time (OAT) knot selection
+\begin{itemize}
+\item Automatically selects the number of knots
+\item Similar predictive performance to simultaneous knot selection
+\item Better represents full GP compared to simultaneous knot selection
+\item Reduced runtimes compared to simultaneous knot selection
+\end{itemize}
+
+\vspace{0.1in}
+
+These slides are available at
+\begin{itemize}
+\item \url{https://github.com/jarad/SFU2020}
+\item \url{http://www.jarad.me/research/presentations.html}
+\end{itemize}
+
+\vspace{0.1in} 
+
+\begin{center}
+{\Large
+Thank you!
+}
+\end{center}
+
+Other links:
+\begin{itemize}
+\item http://www.jaradniemi.com/
+\item https://www.youtube.com/jaradniemi
+\item https://twitter.com/jaradniemi
+\end{itemize}
+\end{frame}
+
+\appendix
+\backupbegin
+
+% \begin{frame}
+% \frametitle{References}
+% \scriptsize
+% \bibliography{references}
+% \bibliographystyle{plainnat}
+% \end{frame}
+
+\end{document}
+

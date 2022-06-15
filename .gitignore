@@ -19,6 +19,7 @@
 
 # RStudio files
 .Rproj.user/
+*.Rproj
 
 # produced vignettes
 vignettes/*.html
@@ -37,3 +38,19 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# Mac files
+.DS_Store
+
+# LaTeX auxiliary files
+*.tex
+*.bbl
+*.blg
+*.log
+*.nav
+*.snm
+*.synctex.gz
+*.toc
+
+# knitr auxiliary files
+figure/
