@@ -1,13 +1,13 @@
-\documentclass[10pt,aspectratio=169,handout]{beamer}
+\documentclass[10pt,aspectratio=169]{beamer}
 \usepackage{natbib}
 \usepackage{pdfpages}
-\usepackage{tikz}
-\usepackage[ruled,vlined,linesnumbered,resetcount]{algorithm2e}
+% \usepackage{tikz}
+% \usepackage[ruled,vlined,linesnumbered,resetcount]{algorithm2e}
 
 \usetheme{AnnArbor}
 \usecolortheme{beaver}
 
-\usetikzlibrary{arrows.meta,positioning}
+% \usetikzlibrary{arrows.meta,positioning}
 
 \graphicspath{{include/}}
 
@@ -248,18 +248,6 @@ Iowa loses \$1,000,000,000/year in soil
 
 % Part I: Introduction ---------------------------------------------------------
 \section{Introduction}
-
-\begin{frame}
-  \frametitle{APSIM}
-
-  \begin{figure}
-      \begin{center}
-          \includegraphics[width=\textwidth,height=0.8\textheight,keepaspectratio]{./include/foresite}
-      \end{center}
-  \end{figure}
-\end{frame}
-
-
 \begin{frame}
   \frametitle{WEPP}
 
@@ -323,6 +311,16 @@ Iowa loses \$1,000,000,000/year in soil
 
 \begin{frame}
   \frametitle{APSIM}
+
+  \begin{figure}
+      \begin{center}
+          \includegraphics[width=\textwidth,height=0.8\textheight,keepaspectratio]{./include/foresite}
+      \end{center}
+  \end{figure}
+\end{frame}
+
+\begin{frame}
+  \frametitle{APSIM}
   \framesubtitle{Input space}
 
   \begin{columns}
@@ -350,194 +348,191 @@ Iowa loses \$1,000,000,000/year in soil
   \end{columns}
 \end{frame}
 
-% Part II: Methodology & Results -----------------------------------------------
-\section{Methodology \& Results}
 
-% \begin{frame}
-%   \frametitle{APSIM}
-%   \framesubtitle{Exploratory Analyses}
-%
-%   \pause
-%
-%   % Cite package -- pretty fast
-%   \begin{columns}
-%     \begin{column}{0.5\textwidth}
-%         \begin{figure}
-%         \begin{center}
-%             \includegraphics[width=\textwidth,height=0.8\textheight,keepaspectratio]{./include/rf_importance_cl}
-%         \end{center}
-%   \end{figure}
-%     \end{column}
-%
-%     \pause
-%
-%     \begin{column}{0.5\textwidth}
-%         \begin{figure}
-%       \begin{center}
-%           \includegraphics[width=\textwidth,height=0.8\textheight,keepaspectratio]{./include/rf_partial_3}
-%       \end{center}
-%   \end{figure}
-%     \end{column}
-%   \end{columns}
-% \end{frame}
-
-% \begin{frame}
-%   \frametitle{One-at-a-time knot selection}
-%   \framesubtitle{Training a GP}
-%
-%   Find the maximum likelihood estimator (MLE) for $\theta = (\tau^2,\sigma^2,\phi)$,
-%   \[
-%     \hat{\theta} = \mbox{argmax}_\theta \, p(y|\theta)
-%     = \mbox{argmax}_{\theta} \, N\left(y; m_x, \tau^2\I + \Sigma(\theta)\right)
-%   \]
-%
-%   where $y=(y_1,\ldots,y_N)$.
-%
-%   The log-likelihood is
-%   \[
-%     \begin{array}{rl}
-%       \log \mathcal{N}(y; m_x, \tau^2\I+\Sigma_\theta) = & C \\
-%       &- \frac{1}{2}\log | \tau^2\I+\Sigma(\theta)| \\
-%       &-\frac{1}{2} (y-m_x)^\top [ \tau^2\I+\Sigma(\theta)]^{-1} (y-m_x)
-%     \end{array}
-%   \]
-%
-%   \vspace{0.2in} \pause
-%
-%   If there are $N$ observations, $\Sigma(\theta)$ is an $N\times N$
-%   covariance matrix
-%
-%   \pause
-%
-%   and thus the computational time scales as $\mathcal{O}(N^3)$.
-%
-%   \vspace{0.2in}
-%
-%   This is doable if $N\approx 1,000$ but not when you start getting larger
-%   and larger data sets.
-% \end{frame}
-%
-% \begin{frame}
-%   \frametitle{One-at-a-time knot selection}
-%   \framesubtitle{Fully Independent Conditional (FIC) Approximation}
-%
-%   Introduce a set of knots $x^{\dagger} = \left\{x_1^\dagger, \ldots, x_K^\dagger \right\}$ with $K<<N$,
-%
-%   \pause
-%
-%   such that
-%   \[
-%     p(f_x,f_{x^{\dagger}}|\theta) = p(f_x|f_{x^{\dagger}}, \theta)p(f_{x^{\dagger}}|\theta).
-%   \]
-%
-%   \pause
-%
-%   where
-%
-%   \[
-%     \begin{array}{rl}
-%       f_x| f_{x^{\dagger}} , \theta  &\sim  \mathcal{N}\left( m_x + \Sigma_{xx^{\dagger}} \Sigma_{x^{\dagger}x^{\dagger}}^{-1}(f_{x^{\dagger}} - m_{x^{\dagger}}) , \Lambda \right)  \pause \\
-%       f_{x^{\dagger}}| \theta &\sim  \mathcal{N}(m_{x^{\dagger}}, \Sigma_{x^{\dagger}x^{\dagger}})
-%     \end{array}
-%   \]
-%
-%   \pause
-%
-%   with $\Lambda = \text{diag}\left(\Sigma_{xx} - \Sigma_{x x^{\dagger}} \Sigma_{x^{\dagger}x^{\dagger}}^{-1} \Sigma_{x^{\dagger}x}\right)$.
-%
-%   \vspace{0.2in} \pause
-%
-%   This joint implies the following marginal distribution for $f_x$:
-%
-%   \[
-%     f_x| \theta \sim \mathcal{N}(m_{x}, \Lambda + \Sigma_{x x^{\dagger}} \Sigma_{x^{\dagger}x^{\dagger}}^{-1} \Sigma_{x^{\dagger}x})
-%   \]
-%
-%   \pause
-%
-%   which has the correct marginal means and variances, \pause
-%   but the covariances are controlled by the knots.
-%
-%   \vspace{0.1in} \pause
-%
-%   {\tiny
-%     \citep{seeger2003, candela2005, snelson2006, banerjee2008, finley2009, titsias2009, cao2013}
-%   }
-% \end{frame}
-%
-% \begin{frame}
-%   \frametitle{One-at-a-time knot selection}
-%   \framesubtitle{Knot selection algorithm}
-%
-%   Algorithm 1. OAT knot selection algorithm.
-%
-%   \pause
-%
-%   \begin{algorithm}[H]
-%     \SetAlgoLined
-%     \textbf{Initialize:} $x^{\dagger} = \{x^{\dagger}_i \}_{i = 1}^{K_{I}}$ \pause \;
-%     $\hat{\theta} = \mbox{argmax}_{\theta} p(y|x, x^{\dagger}, \theta)$ \pause \;
-%
-%     \Repeat{$|x^{\dagger}| = K_{max}$ or convergence}{
-%       propose new knot $x^{\dagger^*} \leftarrow J(y , x, x^{\dagger}, \hat{\theta})$ \pause \;
-%       $(\hat{x}^{\dagger^*}, \hat{\theta}) = \mbox{argmax}_{(x^{\dagger^*}, \theta)} p(y|x, \{x^{\dagger}, x^{\dagger^*}\}, \theta)$ \pause \;
-%       $x^{\dagger} = \{x^{\dagger}, \hat{x}^{\dagger^*}\}$ \;
-%     }
-%   \end{algorithm}
-%
-%   {\tiny
-%     \citep{gartonKnotSelectionSparse2020,gartonScorebasedLikelihoodRatios2020}
-%   }
-% \end{frame}
-%
-% \begin{frame}
-%   \frametitle{One-at-a-time knot selection}
-%   \framesubtitle{Knot proposal algorithm}
-%
-%   Algorithm 2. Knot proposal algorithm. Set the minimum ($T_{min}$) and maximum ($T_{max}$) number of marginal
-% likelihood evaluations. $k$ is the current number of knots.
-%
-%   \pause
-%
-%   {\small
-%     \begin{algorithm}[H]
-%       \SetAlgoLined
-%       set the mean of the meta GP equal to
-%       $\log p\left(y\left|x,\left\{x^{\dagger},\cdot\right\}, \hat{\theta}\right.\right)$ \pause \;
-%       sample $x_1^\dagger, ..., x^\dagger_{T_{min}}$ without replacement from $x$ \pause \;
-%
-%       augment known marginal likelihood values
-%       $w_j = \log p\left(y\left|x,\left\{x^{\dagger},x^{\dagger}_j\right\}, \hat{\theta}\right.\right)$ for $j=1,\ldots,k$
-%       with evaluations of the marginal likelihood at the new knots,
-%       that is $w_{k+j} = \log p\left(y\left|x, \left\{x^{\dagger},x^\dagger_j\right\}, \hat{\theta}\right.\right)$ for $j = 1,...,T_{min}$ \pause \;
-%
-%       \For{$t = T_{min}+1, ..., T_{max}$}{
-%         update covariance parameters in meta GP \pause \;
-%         $x^*_t = \mbox{argmax}_{z \in x \setminus \{x^{\dagger}_l\}_{l = 1}^{t - 1} } \alpha\left(z;w,\left\{x_1^\dagger,\ldots,x_{t-1}^\dagger\right\}\right)$ \pause \;
-%         $w_t = \log p\left(y\left|x, \left\{x^{\dagger}, x^*_t \right\}, \hat{\theta}\right.\right)$ \pause \;
-%       }
-%       return $x_j^*$ such that $j=\mbox{argmax}_t \, w_t$
-%     \end{algorithm}
-%   }
-%
-%   {\tiny
-%     \citep{gartonKnotSelectionSparse2020,gartonScorebasedLikelihoodRatios2020}
-%   }
-% \end{frame}
-%
-% \begin{frame}
-%   \frametitle{OAT Knot selection}
-%   \framesubtitle{Visualization}
-%
-%   \begin{figure}
-%       \begin{center}
-%           \includegraphics[width=\textwidth,height=0.8\textheight,keepaspectratio]{./include/oatfit}
-%       \end{center}
-%   \end{figure}
-%   % s
-% \end{frame}
 
 \section{Gaussian Process}
+\begin{frame}
+\frametitle{Gaussian Process Emulators}
+Consider a computer model $f(\cdot)$ with 
+\[ 
+Y_i = f(X_i, \psi) = f(X_i), \quad i=1,\ldots,N
+\]
+\pause
+where 
+\begin{itemize}
+\item $\psi$ are model parameters, \pause
+\item $X_i$ are inputs, \pause and
+\item $Y_i$ are outputs. \pause 
+\end{itemize}
+
+We assume a Gaussian Process prior 
+\[ f \sim \mathcal{GP}\left(0, k \right)\]
+where $k$ is a covariance kernel. 
+
+\vspace{0.1in} \pause 
+
+Two research directions:
+\begin{itemize}
+\item Computational tractability for large $N$ 
+\item Dealing with functional $X_i$
+\end{itemize}
+\end{frame}
+
+
+\subsection{Training a GP}
+\begin{frame}
+\frametitle{Training a GP}
+
+Find the maximum likelihood estimator (MLE) for $\theta = (\tau^2,\sigma^2,\phi)$,
+
+\[
+\hat{\theta} = \mbox{argmax}_\theta \, p(y|\theta) 
+= \mbox{argmax}_{\theta} \, N\left(y; m_x, \tau^2\I + \Sigma(\theta)\right)
+\]
+
+where $y=(y_1,\ldots,y_N)$.
+The log-likelihood is
+\[ \begin{array}{rl}
+\log \mathcal{N}(y; m_x, \tau^2\I+\Sigma_\theta) = & C \\
+&- \frac{1}{2}\log | \tau^2\I+\Sigma(\theta)| \\
+&-\frac{1}{2} y^\top [ \tau^2\I+\Sigma(\theta)]^{-1} y
+\end{array} \]
+
+\vspace{0.2in} \pause
+
+If there are $N$ observations, $\Sigma(\theta)$ is an $N\times N$ 
+covariance matrix
+\pause
+and thus the computational time scales as $\mathcal{O}(N^3)$.
+
+\vspace{0.2in}
+
+This is doable if $N\approx 1,000$ but not when you start getting larger
+and larger data sets. 
+\end{frame}
+
+
+\subsection{Sparse GPs using knots}
+\begin{frame}
+\frametitle{Fully Independent Conditional (FIC) Approximation}
+
+Introduce a set of knots $x^{\dagger} = \left\{x_1^\dagger, \ldots, x_K^\dagger \right\}$ with $K<<N$,
+\pause
+such that 
+\[
+p(f_x,f_{x^{\dagger}}|\theta) = p(f_x|f_{x^{\dagger}}, \theta) p(f_{x^{\dagger}}|\theta).
+\]
+\pause
+where
+\[ \begin{array}{rl}
+f_x| f_{x^{\dagger}} , \theta  &\sim  \mathcal{N}\left( m_x + \Sigma_{xx^{\dagger}} \Sigma_{x^{\dagger}x^{\dagger}}^{-1}(f_{x^{\dagger}} - m_{x^{\dagger}}) , \Lambda \right)  \pause \\
+f_{x^{\dagger}}| \theta &\sim  \mathcal{N}(m_{x^{\dagger}}, \Sigma_{x^{\dagger}x^{\dagger}}) 
+\end{array} \]
+\pause
+with $\Lambda = \text{diag}\left(\Sigma_{xx} - \Sigma_{x x^{\dagger}} \Sigma_{x^{\dagger}x^{\dagger}}^{-1} \Sigma_{x^{\dagger}x}\right)$.
+
+\vspace{0.2in} \pause
+
+This joint implies the following marginal distribution for $f_x$:
+\[
+f_x| \theta \sim \mathcal{N}(m_{x}, \Lambda + \Sigma_{x x^{\dagger}} \Sigma_{x^{\dagger}x^{\dagger}}^{-1} \Sigma_{x^{\dagger}x})
+\]
+\pause
+which has the correct marginal means and variances, \pause
+but the covariances are controlled by the knots.
+
+\vspace{0.1in} \pause 
+
+% {\tiny 
+% \citep{seeger2003, candela2005, snelson2006, banerjee2008, finley2009, titsias2009, cao2013}
+% }
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Train FIC Model}
+
+Let $\Psi_{xx} \equiv \Lambda(\theta) + \Sigma_{x x^{\dagger}}(\theta) \Sigma_{x^{\dagger}x^{\dagger}}(\theta)^{-1}\Sigma_{x^{\dagger}x}(\theta)$,
+\pause
+then
+\[
+Y|x^{\dagger}, \theta\sim \mathcal{N}(m_{x}, \tau^2\I + \Psi_{xx}).
+\]
+
+\vspace{0.2in} \pause
+
+Train the model by finding
+\[
+\hat{x}^\dagger,\hat\theta = \mbox{argmax}_{x^\dagger,\theta} \mathcal{N}(y; m_x, \tau^2I + \Psi_{xx}).
+\]
+\pause
+which has computational complexity of $\mathcal{O}(NK^2)$.
+\vspace{0.2in} \pause
+
+Appealing due to similarity with Full GP MLE approach and massively reduced
+computational complexity, \pause
+but there are a number of questions:
+\begin{itemize}
+\item how many knots are needed?
+\item where should the knots be?
+\end{itemize}
+\end{frame}
+
+
+\subsection{One-at-a-time (OAT) selection}
+\begin{frame}
+\frametitle{One-at-a-time (OAT) selection}
+We developed a \alert{one-at-a-time (OAT) knot selection} that 
+\begin{itemize}
+\item Begins with a small number of knots
+\item Optimizes the knot locations according to the marginal likelihood or variational objective function
+\item Iteratively adds knots until no improvement is seen in the objective function
+\end{itemize}
+
+
+\vspace{0.2in} \pause
+
+Manuscripts:
+\begin{itemize}
+\item Nate Garton, Jarad Niemi, and Alicia Carriquiry. (2020) ``\href{https://onlinelibrary.wiley.com/doi/full/10.1002/sam.11459}{Knot Selection in Sparse Gaussian Processes with a Variational Objective.}’’ Statistical Analysis and Data Mining. 13(4): 324-336.
+\item Nate Garton, Jarad Niemi, and Alicia Carriquiry. ``\href{https://arxiv.org/abs/2002.09538}{Knot Selection in Sparse Gaussian processes.}’’ arXiv:2002.09538
+\end{itemize}
+
+\end{frame}
+
+
+
+\subsection{Boston Housing}
+\begin{frame}
+\frametitle{Boston Housing}
+
+490 observations (random 80\% for training) with $d=3$
+
+\vspace{0.2in} \pause
+
+\begin{tabular}{|l|r|r|l|r|r|r|}
+\hline
+Method & Runtime & K & Tmax & SRMSE & MNLP & AUKL\\
+\hline
+Full & 394 & -- & -- & 0.359 & 2.500 & 0.000\\
+\hline
+OAT-BO & 545 & 13 & 25 & 0.366 & 2.466 & 0.045\\
+\hline
+OAT-RS & 356 & 12 & 25 & 0.366 & 2.464 & 0.039\\
+\hline
+OAT-RS & 339 & 15 & 50 & 0.364 & 2.469 & 0.047\\
+\hline
+Simult. & 25831 & 50 & -- & 0.378 & 2.291 & 0.356\\
+\hline
+Simult. & 3945 & 13 & -- & 0.356 & 2.313 & 0.242\\
+\hline
+\end{tabular}
+
+\end{frame}
+
+
+
 
 \begin{frame}
   \frametitle{Vector-input Gaussian Process (viGP)}
@@ -562,35 +557,6 @@ D(X_i, X_j, \omega) = \sum_{d = 1}^{D}{\omega_d (x_{i, d} - x_{j, d})^2}.
 \]
 \pause
 We'll refer to this as \alert{viGP}.
-\end{frame}
-
-
-
-\begin{frame}
-  \frametitle{Vector-input Gaussian Process using Principal Component Analysis}
-
-  \pause
-
-For observation $i$, we have $Y_i \in \R$ and $X_i = (X_{i1},\ldots,X_{iD})$
-\pause
-with PCA-rotated inputs $\tilde{X}_i = (\tilde{X}_{i1},\ldots,\tilde{X}_{iD})$.
-\pause
-Our computer model is $f()$ with $Y_i = f(\tilde{X}_i)$.
-
-\vspace{0.1in} \pause
-
-Assume $f$ is a zero-mean Gaussian process with
-\[ Cov(Y_i,Y_j) = \sigma^2 k(\tilde{X}_i, \tilde{X}_j) \]
-\pause
-\[ k(\tilde{X}_i, \tilde{X}_j) = e^{-\frac{1}{2} D(\tilde{X}_i, \tilde{X}_j, \omega)} \]
-\pause
-and
-\[
-D(\tilde{X}_i, \tilde{X}_j, \omega) = \sum_{d = 1}^{D} \omega_d (\tilde{x}_{i, d} - \tilde{x}_{j, d})^2.
-\]
-\pause
-We'll refer to this as \alert{viGP (PCA)}.
-
 \end{frame}
 
 
@@ -628,36 +594,43 @@ We'll refer to this as \alert{fiGP}.
 
 
 
-
 \begin{frame}
-\frametitle{Out-of-sample RMSE}
-\setkeys{Gin}{width=0.85\textwidth}
-\includegraphics{kfoldRMSE_overall}
+  \frametitle{Theoretical fiGP functional length-scale}
+
+  \begin{figure}
+      \begin{center}
+          \includegraphics[width=\textwidth,height=0.8\textheight,keepaspectratio]{02-alf-weight-plot}
+      \end{center}
+  \end{figure}
 \end{frame}
 
 
+
 \begin{frame}
-\frametitle{Leave-one-out $-\log p(\tilde{y})$}
-\setkeys{Gin}{width=0.85\textwidth}
-\includegraphics{loo_overall}
+  \frametitle{Estimated fiGP functional length-scale}
+
+  \begin{figure}
+      \begin{center}
+          \includegraphics[width=\textwidth,height=0.8\textheight,keepaspectratio]{weights-all}
+      \end{center}
+  \end{figure}
 \end{frame}
-
-
 
 
 \begin{frame}
   \frametitle{Summary}
 
-  Functional length-scales
+  Research advances
   \begin{itemize}
-    \item
+  \item OAT algorithm for knot selection to deal with computational intractability due to large $n$
+  \item fiGP model for functional inputs
   \end{itemize}
 
   \vspace{0.1in}
 
   These slides are available at
   \begin{itemize}
-    \item \url{https://github.com/jarad/SSC2021}
+    \item \url{https://github.com/jarad/NCCC170_2022}
     \item \url{http://www.jarad.me/research/presentations.html}
   \end{itemize}
 
@@ -672,19 +645,8 @@ We'll refer to this as \alert{fiGP}.
   Other links:
   \begin{itemize}
     \item \url{http://www.jarad.me/}
-    \item \url{https://luisdamiano.github.io/}
   \end{itemize}
 \end{frame}
 
-\appendix
-\backupbegin
-
-\begin{frame}[allowframebreaks]
-  \frametitle{References}
-  \scriptsize
-  \bibliography{references_jn,references_ld}
-  \bibliographystyle{plainnat}
-\end{frame}
-\backupend
 
 \end{document}
