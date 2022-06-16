@@ -1,4 +1,4 @@
-\documentclass[10pt,aspectratio=169]{beamer}
+\documentclass[10pt,aspectratio=169,handout]{beamer}
 \usepackage{natbib}
 \usepackage{pdfpages}
 % \usepackage{tikz}
@@ -216,7 +216,7 @@ Iowa loses \$1,000,000,000/year in soil
 
 \includegraphics{usda_nifa}
 
-\vspace{0.2in} \pause
+\vspace{0.2in} 
 
 \includegraphics{usda_nifa_value_chain}
 
@@ -268,46 +268,7 @@ Iowa loses \$1,000,000,000/year in soil
 \end{frame}
 
 
-% \begin{frame}
-%   \frametitle{APSIM}
-%   \framesubtitle{Overview}
-%   \setkeys{Gin}{width=0.5\textwidth}
-%
-%   \pause
-%
-%   \begin{figure}
-%       \begin{center}
-%           \includegraphics[]{./include/jigsaw}
-%       \end{center}
-%   \end{figure}
-%
-%    \pause
-%
-%   \begin{itemize}[<+->]
-%     \item Physical process based
-%     \item Peer-reviewed
-%     \item Flexible
-%     \item Calibrated for many different climates and countries
-%     \item Dedicated, funded team of software engineers working to improve it
-%   \end{itemize}
-% \end{frame}
 
-% \begin{frame}
-%   \frametitle{APSIM}
-%   \framesubtitle{Emulation goals}
-%
-%   \pause
-%
-%   \begin{itemize}[<+->]
-%     \item Variable selection: to guide data collection by field scientists.
-%     \item Model calibration: APSIM assumes a flat, uniform soil. TWI.
-%     \item Identify deficiencies: does APSIM emphasize on soil too much?
-%     \item Uncertainty quantification: APSIM is deterministic, real life is not.
-%     \item Inform the development \& calibration of new crop modules (e.g. cover crops).
-%     \item Portability: web interface back end for on-line prediction.
-%     \item Assist scientists in studying agronomical hypothesis.
-%   \end{itemize}
-% \end{frame}
 
 \begin{frame}
   \frametitle{APSIM}
@@ -357,17 +318,17 @@ Consider a computer model $f(\cdot)$ with
 \[ 
 Y_i = f(X_i, \psi) = f(X_i), \quad i=1,\ldots,N
 \]
-\pause
+
 where 
 \begin{itemize}
-\item $\psi$ are model parameters, \pause
-\item $X_i$ are inputs, \pause and
-\item $Y_i$ are outputs. \pause 
+\item $\psi$ are model parameters, 
+\item $X_i$ are inputs, and
+\item $Y_i$ are outputs.
 \end{itemize}
 
 We assume a Gaussian Process prior 
-\[ f \sim \mathcal{GP}\left(0, k \right)\]
-where $k$ is a covariance kernel. 
+\[ f \sim \mathcal{GP}\left(m, k \right) \implies y \sim N(m_x, \Sigma_{x,x}) \]
+where $\Sigma_{x,x}(x,x') = k(x,x')$. 
 
 \vspace{0.1in} \pause 
 
@@ -402,10 +363,9 @@ The log-likelihood is
 
 If there are $N$ observations, $\Sigma(\theta)$ is an $N\times N$ 
 covariance matrix
-\pause
 and thus the computational time scales as $\mathcal{O}(N^3)$.
 
-\vspace{0.2in}
+\vspace{0.2in} \pause
 
 This is doable if $N\approx 1,000$ but not when you start getting larger
 and larger data sets. 
@@ -428,7 +388,6 @@ where
 f_x| f_{x^{\dagger}} , \theta  &\sim  \mathcal{N}\left( m_x + \Sigma_{xx^{\dagger}} \Sigma_{x^{\dagger}x^{\dagger}}^{-1}(f_{x^{\dagger}} - m_{x^{\dagger}}) , \Lambda \right)  \pause \\
 f_{x^{\dagger}}| \theta &\sim  \mathcal{N}(m_{x^{\dagger}}, \Sigma_{x^{\dagger}x^{\dagger}}) 
 \end{array} \]
-\pause
 with $\Lambda = \text{diag}\left(\Sigma_{xx} - \Sigma_{x x^{\dagger}} \Sigma_{x^{\dagger}x^{\dagger}}^{-1} \Sigma_{x^{\dagger}x}\right)$.
 
 \vspace{0.2in} \pause
@@ -438,7 +397,7 @@ This joint implies the following marginal distribution for $f_x$:
 f_x| \theta \sim \mathcal{N}(m_{x}, \Lambda + \Sigma_{x x^{\dagger}} \Sigma_{x^{\dagger}x^{\dagger}}^{-1} \Sigma_{x^{\dagger}x})
 \]
 \pause
-which has the correct marginal means and variances, \pause
+which has the correct marginal means and variances,
 but the covariances are controlled by the knots.
 
 \vspace{0.1in} \pause 
@@ -454,7 +413,6 @@ but the covariances are controlled by the knots.
 \frametitle{Train FIC Model}
 
 Let $\Psi_{xx} \equiv \Lambda(\theta) + \Sigma_{x x^{\dagger}}(\theta) \Sigma_{x^{\dagger}x^{\dagger}}(\theta)^{-1}\Sigma_{x^{\dagger}x}(\theta)$,
-\pause
 then
 \[
 Y|x^{\dagger}, \theta\sim \mathcal{N}(m_{x}, \tau^2\I + \Psi_{xx}).
@@ -503,41 +461,39 @@ Manuscripts:
 
 
 
-\subsection{Boston Housing}
+% \subsection{Boston Housing}
+% \begin{frame}
+% \frametitle{Boston Housing}
+% 
+% 490 observations (random 80\% for training) with $d=3$
+% 
+% \vspace{0.2in} \pause
+% 
+% \begin{tabular}{|l|r|r|l|r|r|r|}
+% \hline
+% Method & Runtime & K & Tmax & SRMSE & MNLP & AUKL\\
+% \hline
+% Full & 394 & -- & -- & 0.359 & 2.500 & 0.000\\
+% \hline
+% OAT-BO & 545 & 13 & 25 & 0.366 & 2.466 & 0.045\\
+% \hline
+% OAT-RS & 356 & 12 & 25 & 0.366 & 2.464 & 0.039\\
+% \hline
+% OAT-RS & 339 & 15 & 50 & 0.364 & 2.469 & 0.047\\
+% \hline
+% Simult. & 25831 & 50 & -- & 0.378 & 2.291 & 0.356\\
+% \hline
+% Simult. & 3945 & 13 & -- & 0.356 & 2.313 & 0.242\\
+% \hline
+% \end{tabular}
+% 
+% \end{frame}
+
+
+
+
 \begin{frame}
-\frametitle{Boston Housing}
-
-490 observations (random 80\% for training) with $d=3$
-
-\vspace{0.2in} \pause
-
-\begin{tabular}{|l|r|r|l|r|r|r|}
-\hline
-Method & Runtime & K & Tmax & SRMSE & MNLP & AUKL\\
-\hline
-Full & 394 & -- & -- & 0.359 & 2.500 & 0.000\\
-\hline
-OAT-BO & 545 & 13 & 25 & 0.366 & 2.466 & 0.045\\
-\hline
-OAT-RS & 356 & 12 & 25 & 0.366 & 2.464 & 0.039\\
-\hline
-OAT-RS & 339 & 15 & 50 & 0.364 & 2.469 & 0.047\\
-\hline
-Simult. & 25831 & 50 & -- & 0.378 & 2.291 & 0.356\\
-\hline
-Simult. & 3945 & 13 & -- & 0.356 & 2.313 & 0.242\\
-\hline
-\end{tabular}
-
-\end{frame}
-
-
-
-
-\begin{frame}
-  \frametitle{Vector-input Gaussian Process (viGP)}
-
-  \pause
+\frametitle{Vector-input Gaussian Process (viGP)}
 
 For observation $i$, we have response $Y_i \in \R$ and
 input $X_i = (X_{i,1},\ldots,X_{i,D})$.
@@ -547,16 +503,12 @@ Our computer model is $f()$ with $Y_i = f(X_i)$.
 \vspace{0.1in} \pause
 
 Assume $f$ is a zero-mean Gaussian process with
-\[ Cov(Y_i,Y_j) = \sigma^2 k(X_i, X_j) \]
-\pause
-\[ k(X_i, X_j) = e^{-\frac{1}{2} D(X_i, X_j, \omega)} \]
+\[ Cov(Y_i,Y_j) = \sigma^2 e^{-\frac{1}{2} D(X_i, X_j, \omega)} \]
 \pause
 and
 \[
 D(X_i, X_j, \omega) = \sum_{d = 1}^{D}{\omega_d (x_{i, d} - x_{j, d})^2}.
 \]
-\pause
-We'll refer to this as \alert{viGP}.
 \end{frame}
 
 
@@ -564,7 +516,6 @@ We'll refer to this as \alert{viGP}.
 
 \begin{frame}
   \frametitle{Functional-input Gaussian Process}
-  \pause
 
 For observation $i$, we have $Y_i \in \R$ and $X_i(t)$ for $t \in [0,T]$.
 \pause
@@ -574,7 +525,7 @@ Our computer model is $f()$ with $Y_i = f(X_i(t))$.
 
 The functional-input Gaussian Process has
 
-\[ k(X_i, X_j) = \sigma^2 e^{-\frac{1}{2} D(X_i(t), X_j(t), \omega)} \]
+\[ Cov(Y_i,Y_j) = \sigma^2 e^{-\frac{1}{2} D(X_i(t), X_j(t), \omega)} \]
 \pause
 \[ D(X_i, X_j, \omega) = \int_0^T \omega(t) (X_i(t) - X_j(t))^2 dt \pause
 \approx \sum_{d=1}^D \omega(t_d) (X_i(t_d) - X_j(t_d))^2. \]
@@ -626,7 +577,7 @@ We'll refer to this as \alert{fiGP}.
   \item fiGP model for functional inputs
   \end{itemize}
 
-  \vspace{0.1in}
+  \vspace{0.1in} \pause
 
   These slides are available at
   \begin{itemize}
@@ -634,7 +585,7 @@ We'll refer to this as \alert{fiGP}.
     \item \url{http://www.jarad.me/research/presentations.html}
   \end{itemize}
 
-  \vspace{0.1in}
+  \vspace{0.1in} \pause
 
   \begin{center}
     {\Large
@@ -645,6 +596,7 @@ We'll refer to this as \alert{fiGP}.
   Other links:
   \begin{itemize}
     \item \url{http://www.jarad.me/}
+    \item \url{https://www.youtube.com/c/jaradniemi}
   \end{itemize}
 \end{frame}
 
