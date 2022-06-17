@@ -100,25 +100,6 @@ set.seed(20210611)
 
 
 
-\section{C-CHANGE}
-\begin{frame}[t]
-\frametitle{C-CHANGE: Science for a changing agriculture}
-
-\begin{columns}[t]
-\begin{column}{0.35\textwidth}
-\includegraphics[width=\textwidth]{cchange}
-\url{http://agchange.org} \pause
-\end{column}
-\begin{column}{0.5\textwidth}
-\includegraphics[width=\textwidth]{prairie_strips}
-\url{http://prairiestrips.org}
-\end{column}
-\end{columns}
-
-
-
-
-\end{frame}
 
 
 \section{Effects of agriculture}
@@ -204,6 +185,21 @@ Iowa loses \$1,000,000,000/year in soil
 
 
 
+\section{C-CHANGE}
+\begin{frame}[t]
+\frametitle{C-CHANGE: Science for a changing agriculture}
+
+\begin{columns}[t]
+\begin{column}{0.35\textwidth}
+\includegraphics[width=\textwidth]{cchange}
+\url{http://agchange.org} \pause
+\end{column}
+\begin{column}{0.5\textwidth}
+\includegraphics[width=\textwidth]{prairie_strips}
+\url{http://prairiestrips.org}
+\end{column}
+\end{columns}
+\end{frame}
 
 
 
